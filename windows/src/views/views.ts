@@ -17,7 +17,7 @@ export interface ViewActions {
   collapse(): void;
   setFocus(id: string): void;
   openTerminal(): void;
-  openCodex(): void;
+  openCodex(sessionId: string): void;
   /** The ↗ button: opens whatever the focused pill points at. */
   openTarget(): void;
   openUrl(url: string): void;
@@ -370,9 +370,14 @@ function buildError(actions: ViewActions): ViewHost {
 export function buildFinished(actions: ViewActions): ViewHost {
   const who = h("div");
   const title = h("div", { class: "title" });
+  // Capture the displayed task: completion cleanup must not reroute a Codex
+  // click to Claude if focus changes before this rendered card is refreshed.
+  let finishedTask: AgentTask | null = null;
   const open = btn("Open terminal", "primary", () => {
-    if (State.focusTask?.source === "codex") actions.openCodex();
-    else actions.openTerminal();
+    if (finishedTask?.source === "codex") {
+      const prefix = "agent_codex:";
+      if (finishedTask.id.startsWith(prefix)) actions.openCodex(finishedTask.id.slice(prefix.length));
+    } else actions.openTerminal();
   });
   const row = h("div", { class: "actions" },
     open,
@@ -383,7 +388,8 @@ export function buildFinished(actions: ViewActions): ViewHost {
     el,
     sync() {
       clear(who);
-      open.querySelector("span")!.textContent = State.focusTask?.source === "codex" ? "Open Codex" : "Open terminal";
+      finishedTask = State.focusTask;
+      open.querySelector("span")!.textContent = finishedTask?.source === "codex" ? "Open Codex" : "Open terminal";
       who.append(agentWho(State.focusTask, State.focusTask?.source === "codex" ? "Codex finished" : "Claude Code finished"));
       title.textContent = State.focusTask?.source === "codex" ? "Turn completed" : State.focusTask?.steps.at(-1) ?? "Session finished";
     },

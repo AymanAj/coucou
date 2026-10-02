@@ -82,12 +82,23 @@ pub fn open_url(url: &str) {
 }
 
 /// Discover the installed desktop package; never assume a WindowsApps version/path.
-pub fn open_codex() -> bool {
+pub fn open_codex(session_id: &str) -> bool {
+    let Some(url) = codex_thread_url(session_id) else { return false; };
+    let script = include_str!("codex-launcher.ps1").replace("__COUCOU_THREAD_URL__", &url);
     no_console(Command::new("powershell.exe").args([
-        "-NoProfile", "-NonInteractive", "-Command", include_str!("codex-launcher.ps1"),
+        "-NoProfile", "-NonInteractive", "-Command", &script,
     ]))
     .output()
     .is_ok_and(|output| output.status.success())
+}
+
+// Official ThreadId/SessionId are UUIDs. Reject everything else before constructing
+// the PowerShell literal; no user-controlled shell syntax or URI segments pass.
+fn codex_thread_url(session_id: &str) -> Option<String> {
+    if session_id.len() != 36 || !session_id.bytes().enumerate().all(|(i, b)| {
+        if [8, 13, 18, 23].contains(&i) { b == b'-' } else { b.is_ascii_hexdigit() }
+    }) { return None; }
+    Some(format!("codex://threads/{session_id}"))
 }
 
 pub fn reveal_folder(path: &str) {
@@ -242,3 +253,19 @@ pub fn set_activating(win: &WebviewWindow, activating: bool) {
 
 /// Click-through here is the poll's WS_EX_TRANSPARENT toggle, not a region.
 pub fn set_input_region(_win: &WebviewWindow, _rect: Option<(f64, f64, f64, f64)>) {}
+
+#[cfg(test)]
+mod codex_launcher_tests {
+    use super::codex_thread_url;
+    #[test]
+    fn preserves_exact_thread_id() {
+        let id = "01a0fd14-c289-7712-9ffe-93df5a02a0fa";
+        assert_eq!(codex_thread_url(id).as_deref(), Some("codex://threads/01a0fd14-c289-7712-9ffe-93df5a02a0fa"));
+    }
+    #[test]
+    fn rejects_missing_malformed_and_injected_ids() {
+        for id in ["", "agent_codex:01a0fd14-c289-7712-9ffe-93df5a02a0fa", "../thread", "';exit 0;#", "01a0fd14-c289-7712-9ffe-93df5a02a0fg"] {
+            assert!(codex_thread_url(id).is_none());
+        }
+    }
+}

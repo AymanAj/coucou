@@ -1,6 +1,7 @@
 # Package/protocol launch contract used by the official Codex Windows TUI:
 # https://github.com/openai/codex/blob/1182834d1325c14878349ff8ca85d4d696a70ef7/codex-rs/tui/src/app/history_ui.rs
 $ErrorActionPreference = 'Stop'
+$url = '__COUCOU_THREAD_URL__'
 $installed = Get-AppxPackage -Name OpenAI.Codex -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($null -eq $installed) { exit 1 }
 
@@ -19,4 +20,4 @@ if (-not (Test-Path -LiteralPath (Join-Path $directory 'resources\app.asar') -Pa
 
 # Use the declared package launcher with its app bundle, not an internal shim
 # or a stale registry executable path. The desktop app handles activation.
-Start-Process -FilePath $launcher -WorkingDirectory $directory -ArgumentList @('resources\app.asar', 'codex://')
+Start-Process -FilePath $launcher -WorkingDirectory $directory -ArgumentList @('resources\app.asar', $url)

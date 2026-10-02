@@ -168,9 +168,9 @@ fn open_in_vscode(path: Option<String>) -> bool {
 }
 
 #[tauri::command]
-async fn open_codex() -> bool {
+async fn open_codex(session_id: String) -> bool {
     #[cfg(windows)] {
-        tauri::async_runtime::spawn_blocking(platform::open_codex).await.unwrap_or(false)
+        tauri::async_runtime::spawn_blocking(move || platform::open_codex(&session_id)).await.unwrap_or(false)
     }
     #[cfg(not(windows))] { false }
 }

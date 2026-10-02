@@ -24,7 +24,7 @@ class Element {
   }
   click() { this.listeners.get("click")?.(); }
 }
-function fixture(run: (view: ReturnType<typeof buildFinished>, calls: string[], focus: (source: AgentSource) => void) => void) {
+function fixture(run: (view: ReturnType<typeof buildFinished>, calls: string[], focus: (source: AgentSource, sessionId?: string) => void) => void) {
   const previous = { document: globalThis.document, tasks: State.tasks, focus: State.focusId,
     codex: Bridge.openCodex, vscode: Bridge.openInVSCode };
   Object.assign(globalThis, { document: {
@@ -32,15 +32,15 @@ function fixture(run: (view: ReturnType<typeof buildFinished>, calls: string[], 
     createTextNode: (text: string) => Object.assign(new Element("#text"), { ownText: text }),
   } });
   const calls: string[] = [];
-  Bridge.openCodex = async () => { calls.push("open_codex"); return true; };
+  Bridge.openCodex = async (sessionId) => { calls.push(`open_codex:${sessionId}`); return true; };
   Bridge.openInVSCode = async () => { calls.push("open_in_vscode"); return true; };
-  const focus = (source: AgentSource) => {
-    const task: AgentTask = { id: source, name: source, source, color: "#60A5FA", state: "finished",
+  const focus = (source: AgentSource, sessionId = "01a0fd14-c289-7712-9ffe-93df5a02a0fa") => {
+    const task: AgentTask = { id: source === "codex" ? `agent_codex:${sessionId}` : source, name: source, source, color: "#60A5FA", state: "finished",
       steps: ["Done"], stepIndex: 0, isIntegration: false };
     State.tasks = [task]; State.focusId = task.id;
   };
   try {
-    const actions = { openCodex: () => { void Bridge.openCodex(); },
+    const actions = { openCodex: (sessionId: string) => { void Bridge.openCodex(sessionId); },
       openTerminal: () => { void Bridge.openInVSCode(null); }, collapse() {} } as ViewActions;
     run(buildFinished(actions), calls, focus);
   } finally {
@@ -60,8 +60,23 @@ test("Claude finished card keeps Open terminal", () => fixture((view, _calls, fo
 test("finished CTA uses Codex launcher exclusively and switches back to unchanged VS Code action", () => fixture((view, calls, focus) => {
   const click = () => (view.el.querySelector("button") as unknown as Element).click();
   focus("codex"); view.sync(); click();
-  assert.deepEqual(calls, ["open_codex"]);
+  assert.deepEqual(calls, ["open_codex:01a0fd14-c289-7712-9ffe-93df5a02a0fa"]);
   focus("claudeCode"); view.sync(); click();
-  assert.deepEqual(calls, ["open_codex", "open_in_vscode"]);
+  assert.deepEqual(calls, ["open_codex:01a0fd14-c289-7712-9ffe-93df5a02a0fa", "open_in_vscode"]);
   assert.equal(view.el.querySelector("button")?.textContent, "Open terminal");
+}));
+
+test("Codex CTA preserves the full ID and isolates simultaneous session targets", () => fixture((view, calls, focus) => {
+  const click = () => (view.el.querySelector("button") as unknown as Element).click();
+  const first = "01a0fd14-c289-7712-9ffe-93df5a02a0fa";
+  const second = "01a0fcef-9964-7901-ac17-47e321b6cab5";
+  focus("codex", first); view.sync(); click();
+  focus("codex", second); view.sync(); click();
+  assert.deepEqual(calls, [`open_codex:${first}`, `open_codex:${second}`]);
+}));
+test("rendered Codex CTA cannot fall through to Claude when its task is removed", () => fixture((view, calls, focus) => {
+  focus("codex"); view.sync();
+  State.tasks = []; State.focusId = null;
+  (view.el.querySelector("button") as unknown as Element).click();
+  assert.deepEqual(calls, ["open_codex:01a0fd14-c289-7712-9ffe-93df5a02a0fa"]);
 }));

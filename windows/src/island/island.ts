@@ -115,7 +115,7 @@ export class Island {
         const cwd = State.focusTask?.sessionCwd ?? null;
         void Bridge.openInVSCode(cwd);
       },
-      openCodex: () => { void Bridge.openCodex(); },
+      openCodex: (sessionId) => { void Bridge.openCodex(sessionId); },
       // The ↗ button — same targets as openAgentTarget() on macOS.
       openTarget: () => {
         const task = State.focusTask;

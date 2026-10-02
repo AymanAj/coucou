@@ -43,10 +43,11 @@ counts or queued animations cannot show a different session's tool activity.
 The Codex finished card says **Open Codex** and launches the installed Windows
 desktop app. Discovery follows the [official Codex Windows launcher](https://github.com/openai/codex/blob/1182834d1325c14878349ff8ca85d4d696a70ef7/codex-rs/tui/src/app/history_ui.rs):
 resolve `OpenAI.Codex`, inspect its package manifest for the `codex` protocol
-executable, then start that launcher with its app bundle and `codex://`.
+executable, then start that launcher with its app bundle and `codex://threads/{session_id}`. The finished card passes the full ID
+from `agent_codex:{session_id}` through the bridge and Tauri command. UUID validation
+rejects malformed IDs before they can enter the PowerShell literal.
 No versioned WindowsApps path or UI automation is used. Windows/the desktop app
-handle activation; launch success does not guarantee foreground focus on every
-system. Claude's **Open terminal** action and VS Code routing are unchanged.
+handle activation; launch success does not establish visible activation. Claude's **Open terminal** action and VS Code routing are unchanged.
 
 Tool names are shown as exposed by Codex. A shell command is not classified as
 reading/editing by guessing its text. Hosted tools do not all have local tool
@@ -177,11 +178,13 @@ Actual development results:
   signing and distribution were not run.
 - Clippy completed successfully, with three warnings in unchanged existing
   `src-tauri/src/hooks.rs` and `src-tauri/src/island.rs`; no new adapter warnings.
-- All **20 Rust tests** passed: 11 existing Windows/Claude tests and nine new
-  Codex parsing/config tests. All **10 TypeScript tests** passed, including
+- All **22 Rust tests** passed: 11 existing Windows/Claude tests, two launcher ID
+  validation tests and nine new
+  Codex parsing/config tests. All **12 TypeScript tests** passed, including
   session isolation, stale-turn/timer protection, malformed/unknown events,
   pause/compaction, structured errors and unchanged Claude task state.
-  Finished-card tests also check Codex/Claude labels and exclusive launcher routing.
+  Finished-card tests also check Codex/Claude labels, exact full-ID routing,
+  switching between sessions and a rendered-card/task-removal race.
 - Five actual Windows named-pipe/relay checks passed: absent app, forwarding,
   stalled write (about two seconds), rejected Codex permission, and unchanged
   Claude Allow response shape. These use a controlled pipe server, not a real
@@ -190,9 +193,19 @@ Actual development results:
   install/reinstall/uninstall, foreign hook preservation, backup and unchanged
   disabled `config.toml` checks.
 - The native finished-card **Open Codex** button was observed calling
-  `open_codex`, with no VS Code command. The desktop launcher returned success.
-  Foreground activation was not verified in Aj's programmatic click smoke;
-  a normal mouse-click/foreground check remains manual validation.
+  `open_codex`, with no VS Code command. The original bare `codex://` launcher
+  returned success, but **Aj's real mouse-click QA failed to visibly open Codex**.
+  The corrected CTA now passes the exact session ID in the official thread URL.
+  Final visible activation acceptance remains pending Aj's manual test; process
+  launch success alone is not a functional pass.
+- Current official source proves hook `session_id` is the **root thread ID**:
+  [`hook_runtime.rs`](https://github.com/openai/codex/blob/9d2b60303e83198905604e704116daa8998c3c47/codex-rs/core/src/hook_runtime.rs),
+  [`Session::session_id` and startup](https://github.com/openai/codex/blob/9d2b60303e83198905604e704116daa8998c3c47/codex-rs/core/src/session/session.rs),
+  and [`LocalAgentControl`](https://github.com/openai/codex/blob/9d2b60303e83198905604e704116daa8998c3c47/codex-rs/core/src/agent/control.rs).
+  Descendant hooks share that root identity, so this CTA targets the root desktop
+  conversation, not an independently guessed child thread. No cwd/name lookup
+  or transcript parsing is performed. The existing five-second task cleanup is
+  unchanged; the CTA captures the displayed task rather than rereading focus at click.
 - A real **0.159.2 Codex engine** turn reached the native Coucou island through
   invocation-only inline hook definitions: SessionStart/UserPromptSubmit/Stop/
   SessionEnd. The project/session identity and completion/reset were checked.
