@@ -73,6 +73,11 @@ export const Bridge = {
   hooksApply: (install: boolean, fingerprint: string) =>
     callOrThrow<string>("hooks_apply", { install, fingerprint }),
 
+  codexHooksStatus: () => call<HookStatus>("codex_hooks_status"),
+  codexHooksPreview: (install: boolean) => callOrThrow<HookPreview>("codex_hooks_preview", { install }),
+  codexHooksApply: (install: boolean, fingerprint: string) =>
+    callOrThrow<string>("codex_hooks_apply", { install, fingerprint }),
+
   approvalDecision: (requestId: string, decision: "allow" | "deny") =>
     call<void>("approval_decision", { requestId, decision }),
   /** "The card is up" — until this lands the relay only waits a moment. */

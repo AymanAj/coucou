@@ -68,6 +68,14 @@ in time, Coucou stays quiet and Claude Code asks in the terminal as usual.
 
 It works from any terminal — Windows Terminal, PowerShell, VS Code, Git Bash.
 
+## Codex sessions
+
+Open **Settings -> Codex -> Install hooks**, review the changes, then explicitly
+review/trust the definitions in Codex **`/hooks`** and start a new session.
+Codex gets its own session pill in the existing island. No OpenAI API key is
+needed; approvals stay in Codex. See [Codex setup, supported events and
+limitations](docs/CODEX.md).
+
 ## Chat and keys
 
 **Settings… → Claude** takes your Anthropic API key. Keys live in the **Windows

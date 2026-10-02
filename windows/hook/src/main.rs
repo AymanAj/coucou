@@ -20,6 +20,9 @@ use std::io::{Read, Write};
 use std::sync::mpsc;
 use std::time::Duration;
 
+#[cfg(windows)]
+mod codex;
+
 /// Budget for getting a pipe connection. Beyond this Claude Code wins, always.
 const CONNECT_TIMEOUT: Duration = Duration::from_millis(300);
 /// Whole-run budget for an event nobody waits on: connect and write, no more.
@@ -47,7 +50,8 @@ use unix::connect;
 fn main() {
     let Some((payload, event)) = read_event() else { std::process::exit(0) };
 
-    let waits_for_answer = event == "PermissionRequest";
+    let is_codex = cfg!(windows) && std::env::args().collect::<Vec<_>>().windows(2).any(|a| a == ["--agent", "codex"]);
+    let waits_for_answer = !is_codex && event == "PermissionRequest";
     let budget = if waits_for_answer { DECISION_BUDGET } else { FIRE_AND_FORGET_BUDGET };
 
     // The worker owns every blocking call. If it overruns the budget we simply
@@ -66,6 +70,8 @@ fn main() {
             let _ = out.flush();
         }
     }
+    // Codex Stop requires JSON, and an empty object never steers its loop.
+    if is_codex { println!("{{}}"); }
     // Nothing printed: Claude Code asks in the terminal, as if we were not here.
     std::process::exit(0);
 }
@@ -120,13 +126,19 @@ fn read_event() -> Option<(String, String)> {
     if !agent.is_empty() {
         map.insert("coucou_agent".into(), serde_json::Value::String(agent));
     }
-    let event = map
+    let mut event = map
         .get("hook_event_name")
         .and_then(|v| v.as_str())
         .map(str::to_string)
         .filter(|s| !s.is_empty())
         .unwrap_or(arg_event);
     map.insert("hook_event_name".into(), serde_json::Value::String(event.clone()));
+
+    #[cfg(windows)]
+    if map.get("coucou_agent").and_then(serde_json::Value::as_str) == Some("codex") {
+        event = codex::adapt(&mut payload)?;
+    }
+    let map = payload.as_object_mut()?;
 
     for field in DROPPED_FIELDS {
         map.remove(*field);

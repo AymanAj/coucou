@@ -95,6 +95,14 @@ export class Ticker {
     return this.startMs != null || this.queue.length > 0;
   }
 
+  /** Re-seed when the same ticker is reused for a different coding session. */
+  reset() {
+    this.displayIndex = -1;
+    this.queue = [];
+    this.startMs = null;
+    setText(this.c, "");
+  }
+
   sync(task: AgentTask | null) {
     const steps = task && task.steps.length > 0 ? task.steps : ["…"];
     const idx = task ? Math.min(task.stepIndex, steps.length - 1) : -1;

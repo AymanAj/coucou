@@ -1,6 +1,8 @@
 // Coucou for Windows — app wiring and the commands the island calls.
 
 mod claude;
+#[cfg(windows)]
+mod codex_hooks;
 mod files;
 mod hooks;
 mod integrations;
@@ -211,6 +213,23 @@ fn hooks_apply(
     Ok(backup)
 }
 
+// Codex has a separate setup path; Claude settings and trust stay untouched.
+#[tauri::command]
+fn codex_hooks_status() -> Option<HookStatus> {
+    #[cfg(windows)] { Some(codex_hooks::status()) }
+    #[cfg(not(windows))] { None }
+}
+#[tauri::command]
+fn codex_hooks_preview(install: bool) -> Result<HookPreview, String> {
+    #[cfg(windows)] { codex_hooks::preview(install) }
+    #[cfg(not(windows))] { let _ = install; Err("Codex integration is Windows-only".into()) }
+}
+#[tauri::command]
+fn codex_hooks_apply(install: bool, fingerprint: String) -> Result<String, String> {
+    #[cfg(windows)] { codex_hooks::write(install, &fingerprint) }
+    #[cfg(not(windows))] { let _ = (install, fingerprint); Err("Codex integration is Windows-only".into()) }
+}
+
 #[tauri::command]
 fn approval_decision(app: AppHandle, request_id: String, decision: String) {
     pipe::answer(&app, &request_id, &decision);
@@ -387,6 +406,9 @@ pub fn run() {
             hooks_status,
             hooks_preview,
             hooks_apply,
+            codex_hooks_status,
+            codex_hooks_preview,
+            codex_hooks_apply,
             approval_decision,
             approval_ack,
             approval_decline,

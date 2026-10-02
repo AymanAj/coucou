@@ -7,6 +7,7 @@ import { Bridge, onEvent } from "../core/bridge";
 import { Sound } from "../core/sound";
 import { State } from "../core/state";
 import type { Island } from "./island";
+import { handleCodexHook } from "./codex-hooks";
 
 const CLAUDE_ID = "integration_claude";
 
@@ -25,6 +26,7 @@ interface HookPayload {
   tool_input?: Record<string, unknown>;
   /** Optional agent tag: lowercase, digits and hyphens, ≤ 24 chars. */
   coucou_agent?: string;
+  coucou_codex_windows?: boolean;
 }
 
 /** Same rule as HookServer.validateAgent on macOS. "claude" is reserved. */
@@ -141,6 +143,10 @@ export function registerHookHandlers(island: Island) {
 }
 
 function handleHook(island: Island, payload: HookPayload) {
+  if (payload?.coucou_agent === "codex" && payload.coucou_codex_windows === true) {
+    handleCodexHook(island, payload);
+    return;
+  }
   if (State.paused) {
     // Silence here used to cost Claude Code nearly two minutes: the relay waited
     // for a decision from an island that had already decided not to look. Say so,

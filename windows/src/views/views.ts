@@ -166,6 +166,9 @@ function buildOverview(actions: ViewActions): ViewHost {
     sync() {
       const task = State.focusTask;
       if (task?.id !== lastFocus) {
+        // Equal step counts across Codex sessions must not retain another
+        // session's text or queued animation, including when returning to Claude.
+        if (task?.source === "codex" || lastFocus?.startsWith("agent_codex:")) ticker.reset();
         lastFocus = task?.id ?? null;
         detailOpen = false;
         cardKey = "";
@@ -175,7 +178,8 @@ function buildOverview(actions: ViewActions): ViewHost {
       // VS Code with a live Claude Code session keeps the ticker; every other
       // pill shows its own card, exactly like IntegrationCardView.
       const sessionActive =
-        task?.id === "integration_claude" && (task.state !== "idle" || task.steps.length > 0);
+        task?.source === "codex" ||
+        (task?.id === "integration_claude" && (task.state !== "idle" || task.steps.length > 0));
 
       if (task && sessionActive) {
         if (mode !== "ticker") {
@@ -188,7 +192,7 @@ function buildOverview(actions: ViewActions): ViewHost {
         who.append(
           dot(task.color, 7),
           h("span", { class: "name", text: task.name }),
-          h("span", { class: "tool", text: task.source === "claudeCode" ? "Claude Code" : "n8n" }),
+          h("span", { class: "tool", text: task.source === "codex" ? "Codex" : task.source === "claudeCode" ? "Claude Code" : "n8n" }),
         );
         if (task.steps.length > 1) {
           who.append(h("span", {
@@ -374,8 +378,8 @@ function buildFinished(actions: ViewActions): ViewHost {
     el,
     sync() {
       clear(who);
-      who.append(agentWho(State.focusTask, "Claude Code finished"));
-      title.textContent = State.focusTask?.steps.at(-1) ?? "Session finished";
+      who.append(agentWho(State.focusTask, State.focusTask?.source === "codex" ? "Codex finished" : "Claude Code finished"));
+      title.textContent = State.focusTask?.source === "codex" ? "Turn completed" : State.focusTask?.steps.at(-1) ?? "Session finished";
     },
   };
 }

@@ -23,6 +23,8 @@ tokio = { version = "1", features = ["net", "io-util", "sync", "time", "rt"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
 [target.'cfg(windows)'.dependencies]
+base64 = "0.22"
+toml = "1.1"
 keyring = { version = "3", features = ["windows-native"] }
 windows = { version = "0.61", features = [
   "Win32_Foundation",

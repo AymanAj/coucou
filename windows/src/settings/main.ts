@@ -43,35 +43,42 @@ function renderDiff(text: string): HTMLElement {
 
 // ── Claude Code section ───────────────────────────────────────────────────────
 
-function claudeSection(status: HookStatus): HTMLElement {
+function claudeSection(status: HookStatus, codex = false): HTMLElement {
+  const title = codex ? "Codex" : "Claude Code";
+  const file = codex ? "hooks.json" : "settings.json";
+  const api = codex ? {
+    status: Bridge.codexHooksStatus, preview: Bridge.codexHooksPreview, apply: Bridge.codexHooksApply,
+  } : { status: Bridge.hooksStatus, preview: Bridge.hooksPreview, apply: Bridge.hooksApply };
   const body = h("div", { style: "display:flex;flex-direction:column;gap:12px" });
   const section = h(
     "section",
     {},
-    h("h2", {}, statusDot(status.installed), h("span", { text: "Claude Code" })),
+    h("h2", {}, statusDot(status.installed), h("span", { text: title })),
     body,
   );
 
   const rebuild = async () => {
-    const fresh = await Bridge.hooksStatus();
+    const fresh = await api.status();
     if (fresh) Object.assign(status, fresh);
     clear(body);
     draw();
     const head = section.querySelector("h2")!;
     clear(head);
-    head.append(statusDot(status.installed), h("span", { text: "Claude Code" }));
+    head.append(statusDot(status.installed), h("span", { text: title }));
   };
 
   function draw() {
     body.append(
       h("div", {
         class: "hint",
-        text: status.installed
+        text: codex
+          ? "Observe your existing Windows Codex sessions. No API key is needed. Approvals stay in Codex. After installing, review/trust the exact definitions in Codex /hooks and start a new session."
+          : status.installed
           ? "Coucou is hooked into your Claude Code sessions. Tool calls, questions and permission requests show up in the island, and you can answer them there."
           : "Install the hooks to see your Claude Code sessions in the island and approve permissions without leaving what you are doing.",
       }),
       h("div", { class: "row" },
-        h("label", { text: "settings.json" }),
+        h("label", { text: file }),
         h("span", { class: "path", text: status.settingsPath }),
       ),
       h("div", { class: "row" },
@@ -114,7 +121,7 @@ function claudeSection(status: HookStatus): HTMLElement {
   async function showPreview(install: boolean) {
     let preview;
     try {
-      preview = await Bridge.hooksPreview(install);
+      preview = await api.preview(install);
     } catch (err) {
       // An unreadable or invalid settings.json stops here rather than being
       // treated as empty and written over.
@@ -134,7 +141,7 @@ function claudeSection(status: HookStatus): HTMLElement {
       h("div", {
         class: "hint",
         text: install
-          ? "This is exactly what will change in your settings.json. Your own hooks are left untouched."
+          ? (codex ? `This is what will change in your ${file}. Your own hooks are left untouched.` : "This is exactly what will change in your settings.json. Your own hooks are left untouched.")
           : "This removes Coucou's entries only. Your own hooks are left untouched.",
       }),
       renderDiff(preview.diff),
@@ -149,11 +156,11 @@ function claudeSection(status: HookStatus): HTMLElement {
     confirm.addEventListener("click", async () => {
       confirm.disabled = true;
       try {
-        const backup = await Bridge.hooksApply(install, preview.fingerprint);
+        const backup = await api.apply(install, preview.fingerprint);
         clear(body);
         body.append(h("div", {
           class: "notice ok",
-          text: `Done. Previous settings saved as ${backup}. Open a new Claude Code session to pick the hooks up.`,
+          text: `Done. Previous settings saved as ${backup}. ${codex ? "Review/trust the definitions in Codex /hooks, then start a new session." : "Open a new Claude Code session to pick the hooks up."}`,
         }));
         window.setTimeout(() => void rebuild(), 2600);
       } catch (err) {
@@ -429,6 +436,8 @@ async function main() {
     installed: false, settingsPath: "", hookPath: "", hookReady: false,
   };
 
+  const codexStatus = await Bridge.codexHooksStatus();
+
   const hasKey = (await Bridge.secretPresent("anthropic-api-key")) ?? false;
 
   const keys = [
@@ -442,6 +451,7 @@ async function main() {
   root.append(
     h("h1", {}, h("span", { text: "Coucou" }), h("span", { class: "version", text: version })),
     claudeSection(status),
+    ...(codexStatus ? [claudeSection(codexStatus, true)] : []),
     apiSection(hasKey),
     integrationsSection(present),
     generalSection(),
