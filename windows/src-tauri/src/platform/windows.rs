@@ -81,6 +81,15 @@ pub fn open_url(url: &str) {
         .spawn();
 }
 
+/// Discover the installed desktop package; never assume a WindowsApps version/path.
+pub fn open_codex() -> bool {
+    no_console(Command::new("powershell.exe").args([
+        "-NoProfile", "-NonInteractive", "-Command", include_str!("codex-launcher.ps1"),
+    ]))
+    .output()
+    .is_ok_and(|output| output.status.success())
+}
+
 pub fn reveal_folder(path: &str) {
     let _ = Command::new("explorer").arg(path).spawn();
 }

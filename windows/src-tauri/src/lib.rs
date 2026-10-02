@@ -168,6 +168,14 @@ fn open_in_vscode(path: Option<String>) -> bool {
 }
 
 #[tauri::command]
+async fn open_codex() -> bool {
+    #[cfg(windows)] {
+        tauri::async_runtime::spawn_blocking(platform::open_codex).await.unwrap_or(false)
+    }
+    #[cfg(not(windows))] { false }
+}
+
+#[tauri::command]
 fn quit_app(app: AppHandle) {
     app.exit(0);
 }
@@ -402,6 +410,7 @@ pub fn run() {
             reposition,
             open_url,
             open_in_vscode,
+            open_codex,
             quit_app,
             hooks_status,
             hooks_preview,

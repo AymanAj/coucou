@@ -17,6 +17,7 @@ export interface ViewActions {
   collapse(): void;
   setFocus(id: string): void;
   openTerminal(): void;
+  openCodex(): void;
   /** The ↗ button: opens whatever the focused pill points at. */
   openTarget(): void;
   openUrl(url: string): void;
@@ -366,11 +367,15 @@ function buildError(actions: ViewActions): ViewHost {
 
 // ── Finished ──────────────────────────────────────────────────────────────────
 
-function buildFinished(actions: ViewActions): ViewHost {
+export function buildFinished(actions: ViewActions): ViewHost {
   const who = h("div");
   const title = h("div", { class: "title" });
+  const open = btn("Open terminal", "primary", () => {
+    if (State.focusTask?.source === "codex") actions.openCodex();
+    else actions.openTerminal();
+  });
   const row = h("div", { class: "actions" },
-    btn("Open terminal", "primary", () => actions.openTerminal()),
+    open,
     btn("OK", "secondary", () => actions.collapse()),
   );
   const el = h("div", { class: "view" }, card("green", stack(116, 16, who, title, row)));
@@ -378,6 +383,7 @@ function buildFinished(actions: ViewActions): ViewHost {
     el,
     sync() {
       clear(who);
+      open.querySelector("span")!.textContent = State.focusTask?.source === "codex" ? "Open Codex" : "Open terminal";
       who.append(agentWho(State.focusTask, State.focusTask?.source === "codex" ? "Codex finished" : "Claude Code finished"));
       title.textContent = State.focusTask?.source === "codex" ? "Turn completed" : State.focusTask?.steps.at(-1) ?? "Session finished";
     },

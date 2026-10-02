@@ -40,6 +40,14 @@ agent or Claude approval is not displaced by session detection.
 The shared ticker is re-seeded on focus changes involving Codex, so equal step
 counts or queued animations cannot show a different session's tool activity.
 
+The Codex finished card says **Open Codex** and launches the installed Windows
+desktop app. Discovery follows the [official Codex Windows launcher](https://github.com/openai/codex/blob/1182834d1325c14878349ff8ca85d4d696a70ef7/codex-rs/tui/src/app/history_ui.rs):
+resolve `OpenAI.Codex`, inspect its package manifest for the `codex` protocol
+executable, then start that launcher with its app bundle and `codex://`.
+No versioned WindowsApps path or UI automation is used. Windows/the desktop app
+handle activation; launch success does not guarantee foreground focus on every
+system. Claude's **Open terminal** action and VS Code routing are unchanged.
+
 Tool names are shown as exposed by Codex. A shell command is not classified as
 reading/editing by guessing its text. Hosted tools do not all have local tool
 hooks. This phase does not invent waiting/question events, crash notifications,
@@ -170,9 +178,10 @@ Actual development results:
 - Clippy completed successfully, with three warnings in unchanged existing
   `src-tauri/src/hooks.rs` and `src-tauri/src/island.rs`; no new adapter warnings.
 - All **20 Rust tests** passed: 11 existing Windows/Claude tests and nine new
-  Codex parsing/config tests. All **seven TypeScript tests** passed, including
+  Codex parsing/config tests. All **10 TypeScript tests** passed, including
   session isolation, stale-turn/timer protection, malformed/unknown events,
   pause/compaction, structured errors and unchanged Claude task state.
+  Finished-card tests also check Codex/Claude labels and exclusive launcher routing.
 - Five actual Windows named-pipe/relay checks passed: absent app, forwarding,
   stalled write (about two seconds), rejected Codex permission, and unchanged
   Claude Allow response shape. These use a controlled pipe server, not a real
@@ -180,6 +189,10 @@ Actual development results:
 - The native Settings webview and actual Tauri commands passed isolated
   install/reinstall/uninstall, foreign hook preservation, backup and unchanged
   disabled `config.toml` checks.
+- The native finished-card **Open Codex** button was observed calling
+  `open_codex`, with no VS Code command. The desktop launcher returned success.
+  Foreground activation was not verified in Aj's programmatic click smoke;
+  a normal mouse-click/foreground check remains manual validation.
 - A real **0.159.2 Codex engine** turn reached the native Coucou island through
   invocation-only inline hook definitions: SessionStart/UserPromptSubmit/Stop/
   SessionEnd. The project/session identity and completion/reset were checked.
