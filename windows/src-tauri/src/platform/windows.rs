@@ -81,7 +81,7 @@ pub fn open_url(url: &str) {
         .spawn();
 }
 
-/// Discover the installed desktop package; never assume a WindowsApps version/path.
+/// Open the validated thread URL through the registered Windows protocol handler.
 pub fn open_codex(session_id: &str) -> bool {
     let Some(url) = codex_thread_url(session_id) else { return false; };
     let script = include_str!("codex-launcher.ps1").replace("__COUCOU_THREAD_URL__", &url);

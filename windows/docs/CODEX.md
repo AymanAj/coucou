@@ -40,14 +40,21 @@ agent or Claude approval is not displaced by session detection.
 The shared ticker is re-seeded on focus changes involving Codex, so equal step
 counts or queued animations cannot show a different session's tool activity.
 
-The Codex finished card says **Open Codex** and launches the installed Windows
-desktop app. Discovery follows the [official Codex Windows launcher](https://github.com/openai/codex/blob/1182834d1325c14878349ff8ca85d4d696a70ef7/codex-rs/tui/src/app/history_ui.rs):
-resolve `OpenAI.Codex`, inspect its package manifest for the `codex` protocol
-executable, then start that launcher with its app bundle and `codex://threads/{session_id}`. The finished card passes the full ID
-from `agent_codex:{session_id}` through the bridge and Tauri command. UUID validation
+The Codex finished card says **Open Codex** and requests
+`codex://threads/{session_id}` through the registered Windows protocol handler
+(`Start-Process -FilePath $url`). The full ID passes from
+`agent_codex:{session_id}` through the bridge and Tauri command. UUID validation
 rejects malformed IDs before they can enter the PowerShell literal.
-No versioned WindowsApps path or UI automation is used. Windows/the desktop app
-handle activation; launch success does not establish visible activation. Claude's **Open terminal** action and VS Code routing are unchanged.
+No versioned WindowsApps path, registration repair, or focus/UI automation is used.
+Claude's **Open terminal** action and VS Code routing are unchanged.
+
+Aj's installed package uses the Owl runtime and declares `app/ChatGPT.exe`.
+The official TUI's direct executable/app-bundle invocation returned success but
+failed Aj's visible-opening tests with Codex running and fully closed.
+Aj then verified that the registered protocol launch **visibly opens Codex**.
+This installation evidence selects the shell route; the stale-looking registry
+entry was not modified. Coucou button acceptance and exact-conversation selection
+must still be checked separately; launcher process success is insufficient.
 
 Tool names are shown as exposed by Codex. A shell command is not classified as
 reading/editing by guessing its text. Hosted tools do not all have local tool
@@ -196,8 +203,14 @@ Actual development results:
   `open_codex`, with no VS Code command. The original bare `codex://` launcher
   returned success, but **Aj's real mouse-click QA failed to visibly open Codex**.
   The corrected CTA now passes the exact session ID in the official thread URL.
-  Final visible activation acceptance remains pending Aj's manual test; process
-  launch success alone is not a functional pass.
+  Aj subsequently confirmed the package-executable route failed even with the
+  app closed, while `Start-Process 'codex://threads/{session_id}'` visibly opened
+  Codex. The launcher now uses that registered-protocol route. Final acceptance
+  from the actual Coucou button remains pending Aj's test; selecting the exact
+  conversation is a separate, still-unverified criterion.
+- The revised production PowerShell script passed syntax validation and isolated
+  mocked checks: the exact validated thread URL is passed to the shell, and a
+  shell-launch exception propagates as failure. These are not visible-app tests.
 - Current official source proves hook `session_id` is the **root thread ID**:
   [`hook_runtime.rs`](https://github.com/openai/codex/blob/9d2b60303e83198905604e704116daa8998c3c47/codex-rs/core/src/hook_runtime.rs),
   [`Session::session_id` and startup](https://github.com/openai/codex/blob/9d2b60303e83198905604e704116daa8998c3c47/codex-rs/core/src/session/session.rs),
